@@ -2,11 +2,11 @@
 Fake database class
 Ideally we'd have a SQL database here to get the data from a table properly
 """
-from datetime import date, time
+import json
+from datetime import date, time, datetime
 from typing import Tuple, List
 
-from models import Worker, ServiceType
-
+from models import Worker, ServiceType, UserData
 
 prompts = {
     'greetings':
@@ -18,7 +18,7 @@ prompts = {
         f"Use the `get_available_times` tool to show available slots, then use the appointment booking tool to set the time.\n"
         f"Speak like a human, don't use phrases like \"Your information has been corrected\". Talk friendly.\n"
         f"When the user appears done OR asks to end, you MUST call the tool `final_double_check` to confirm all details. "
-        f"Only after the user confirms, say goodbye (or call end_call)."
+        f"Only after the user confirms all details are correct, call the `complete_conversation` tool to save the appointment and end the call."
 }
 
 
@@ -56,6 +56,17 @@ class WorkersTable:
         slots = {slot for w in WorkersTable._get_workers() if skill in w.skills for slot in w.get_availability()}
 
         return sorted(slots, key=lambda s: (s[0], s[1]))
+
+
+# Ideally, in a SQL file. Using jsonl for the simplicity as an example
+def save_userdata_to_json(userdata: UserData, room_name: str):
+    userdata_dict = userdata.summarize()
+    userdata_dict["timestamp"] = datetime.now().isoformat()
+    userdata_dict["room_name"] = room_name
+
+    with open("appointments.jsonl", "a", encoding="utf-8") as f:
+        f.write(json.dumps(userdata_dict, ensure_ascii=False) + "\n")
+    print("Appointment saved to appointments.jsonl")
 
 
 if __name__ == '__main__':

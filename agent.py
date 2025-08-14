@@ -1,7 +1,11 @@
 import os
 import sys
+import json
+import signal
+import asyncio
+from datetime import datetime
 
-from database import prompts, WorkersTable
+from database import prompts, WorkersTable, save_userdata_to_json
 from models import UserData, ServiceType
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -38,10 +42,12 @@ class VoiceAgent(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=prompts['greetings'])
         self.service_type = None
+        self.userdata = None
+        self.room_name = None
 
     @property
     def tools(self):
-        base_tools = [self.update_user_info, self.convince_user, self.update_reason_of_call, self.get_available_times, self.final_double_check]
+        base_tools = [self.update_user_info, self.convince_user, self.update_reason_of_call, self.get_available_times, self.final_double_check, self.complete_conversation]
         
         if self.service_type:
             base_tools.append(self.build_set_appointment_tool(self.service_type))
@@ -142,6 +148,23 @@ class VoiceAgent(Agent):
         userdata = context.userdata
         summary = userdata.summarize()
         return f"Let me confirm the information I have: {[f'{k}: {v}' for k, v in summary.items()]}"
+
+    @function_tool()
+    async def complete_conversation(
+            self,
+            context: RunContext[UserData],
+    ) -> str:
+        """
+        Called when the conversation is complete and all information has been collected.
+        This should be called after the appointment has been confirmed and the user is ready to end the call.
+        """
+        userdata = context.userdata
+        self.userdata = userdata
+        self.room_name = "console_session"
+        
+        save_userdata_to_json(userdata, self.room_name)
+        
+        return "Thank you for your time! Your appointment has been confirmed and saved. Have a great day!"
 
     def build_set_appointment_tool(
         self,
