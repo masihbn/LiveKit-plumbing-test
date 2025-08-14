@@ -6,7 +6,8 @@ from models import UserData, ServiceType
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from typing import Annotated, Literal
+from typing import Annotated, Optional
+from dataclasses import fields
 
 from dotenv import load_dotenv
 from pydantic import Field
@@ -34,58 +35,58 @@ RunContext_T = RunContext[UserData]
 
 
 class VoiceAgent(Agent):
-    def __init__(self) -> None:
-        super().__init__(
-            instructions=prompts['greetings'],
-        )
+    def __init__(self) -> None: super().__init__(instructions=prompts['greetings'])
 
     @property
-    def tools(self):
-        return [
-            self.update_name, self.update_phone_number, self.update_address_and_postal_code,
-            self.update_reason_of_call, self.final_double_check
-        ]
+    def tools(self): return [self.update_user_info, self.convince_user, self.update_reason_of_call, self.final_double_check]
 
     @function_tool()
-    async def update_name(
+    async def update_user_info(
             self,
-            name: Annotated[str, Field(description="The customer's name")],
-            context: RunContext[UserData],
+            name: Annotated[Optional[str], Field(description="The customer's name")] = None,
+            number: Annotated[Optional[str], Field(description="The customer's phone number")] = None,
+            address: Annotated[Optional[str], Field(description="The customer's address")] = None,
+            postal_code: Annotated[Optional[str], Field(description="The customer's postal code")] = None,
+            context: RunContext[UserData] = None,
     ) -> str:
-        """Called when the user provides their name.
-        Confirm the spelling with the user before calling the function.
-        If user refuses to provide this, say that you can't set an appointment without this info"""
+        f"""
+        Called when the user provides *any* of these contact details: {', '.join(f.name for f in fields(UserData))}.
+        Before calling this function, confirm the provided values with the user.
+        """
+        if not any([name, number, address, postal_code]):
+            return "No fields provided to update."
+
         userdata = context.userdata
-        userdata.name = name
-        return f"The name is updated to {name}"
+        updated = []
+
+        if name is not None:
+            userdata.name = name
+            updated.append(("name", name))
+
+        if number is not None:
+            userdata.phone_number = number
+            updated.append(("phone number", number))
+
+        if address is not None:
+            userdata.address = address
+            updated.append(("address", address))
+
+        if postal_code is not None:
+            userdata.postal_code = postal_code
+            updated.append(("postal code", postal_code))
+
+        return f'Updated: {', '.join(f"{label} to {value}" for label, value in updated) if updated else 'Nothing'}'
 
     @function_tool()
-    async def update_phone_number(
+    async def convince_user(
             self,
-            number: Annotated[str, Field(description="The customer's phone number")],
-            context: RunContext[UserData],
+            context: RunContext[UserData] = None,
     ) -> str:
-        """Called when the user provides their phone number.
-        Confirm the phone number with the user before calling the function.
-        If user refuses to provide this, say that you can't set an appointment without this info"""
-        userdata = context.userdata
-        userdata.phone_number = number
-        return f"The phone number is updated to {number}"
-
-    @function_tool()
-    async def update_address_and_postal_code(
-            self,
-            address: Annotated[str, Field(description="The customer's address")],
-            postal_code: Annotated[str, Field(description="The customer's postal code")],
-            context: RunContext[UserData],
-    ) -> str:
-        """Called when the user provides their address.
-        Confirm the address with the user before calling the function.
-        If user refuses to provide this, say that you can't set an appointment without this info"""
-        userdata = context.userdata
-        userdata.address = address
-        userdata.postal_code = postal_code
-        return f"The address is updated to {address} and postal code to {postal_code}"
+        """
+        Called when the user refuses to provide ANY information.
+        MAKE SURE YOU GET THE INFORMATION.
+        """
+        return "All the information is needed to ensure our agents can reach you. Without the information, I can't set the appointment"
 
     @function_tool()
     async def update_reason_of_call(
@@ -106,25 +107,13 @@ class VoiceAgent(Agent):
             self,
             context: RunContext[UserData],
     ) -> str:
-        """Called when the user has provided all the details and to double-check the information with the user.
+        f"""
+        Called at the end of the conversation to finalize the appointment and DOUBLE-CHECK the information with the user.
         Repeat all the information received from the user and update anything that's wrong.
-        If you've already doubled-checked once, and just made a change to a few of the information, then just double-check the changed ones"""
+        """
         userdata = context.userdata
         summary = userdata.summarize()
-        return f"Let me confirm the information I have: {[f'{k}: {v}' for k, v in summary.items()]}\n  Please confirm if this information is correct or let me know what needs to be updated."
-
-    # def build_combo_order_tool(
-    #     self, combo_items: list[MenuItem], drink_items: list[MenuItem], sauce_items: list[MenuItem]
-    # ) -> FunctionTool:
-    #     available_times = WorkersTable.get_all_availabilities(ServiceType.PEST_CONTROL)
-    #
-    #     @function_tool
-    #     async def order_combo_meal(
-    #         ctx: RunContext[UserData]
-    #     ):
-    #         """This is called after all the information has been collected from the user."""
-    #
-    #     return None
+        return f"Let me confirm the information I have: {[f'{k}: {v}' for k, v in summary.items()]}"
 
 
 async def entrypoint(ctx: JobContext):

@@ -15,6 +15,8 @@ prompts = {
         f"Start by asking how you can help the client.\n"
         f"If client tries to ask irrelevant questions, kindly ask to report which one of the services he/she is looking for and lead the conversation.\n"
         f"Speak like a human, don't use phrases like \"You're information has been corrected\". Talk friendly.\n"
+        f"When the user appears done OR asks to end, you MUST call the tool `final_double_check` to confirm all details. "
+        f"Only after the user confirms, say goodbye (or call end_call)."
 }
 
 
@@ -59,4 +61,3 @@ if __name__ == '__main__':
     nw = WorkersTable.get_next_free_worker(a[0])
 
     pass
-
