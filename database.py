@@ -10,11 +10,13 @@ from models import Worker, ServiceType
 
 prompts = {
     'greetings':
-        f"You're a respectful voice agents who receives calls from clients who want to set an appointment for one of your company's services.\n"
+        f"You're a respectful voice agent who receives calls from clients who want to set an appointment for one of your company's services.\n"
         f"These services include {[e.value for e in ServiceType]}.\n"
         f"Start by asking how you can help the client.\n"
         f"If client tries to ask irrelevant questions, kindly ask to report which one of the services he/she is looking for and lead the conversation.\n"
-        f"Speak like a human, don't use phrases like \"You're information has been corrected\". Talk friendly.\n"
+        f"After getting the service type, collect their contact information (name, phone, address, postal code) and then help them book an appointment time.\n"
+        f"Use the `get_available_times` tool to show available slots, then use the appointment booking tool to set the time.\n"
+        f"Speak like a human, don't use phrases like \"Your information has been corrected\". Talk friendly.\n"
         f"When the user appears done OR asks to end, you MUST call the tool `final_double_check` to confirm all details. "
         f"Only after the user confirms, say goodbye (or call end_call)."
 }
@@ -59,5 +61,5 @@ class WorkersTable:
 if __name__ == '__main__':
     a = WorkersTable.get_all_availabilities(ServiceType.PEST_CONTROL)
     nw = WorkersTable.get_next_free_worker(a[0])
-
-    pass
+    print(f"Available times: {a}")
+    print(f"Next worker: {nw.name if nw else 'None'}")

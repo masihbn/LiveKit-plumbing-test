@@ -1,6 +1,12 @@
 from enum import Enum
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Optional
+
+
+class ServiceType(Enum):
+    PLUMBING = "Plumbing"
+    PEST_CONTROL = "Pest Control"
+    ROOFING_ISSUES = "Roofing Issues"
 
 
 @dataclass
@@ -9,18 +15,18 @@ class UserData:
     phone_number: str = None
     address: str = None
     postal_code: str = None
-    reason_of_call: str = None
+    reason_of_call: ServiceType = None
+    appointment_time: str = None
 
     def validate_reason_of_call(self, reason: str) -> bool:
-        """Validate that the reason is one of the ServiceType enum values"""
         return reason in [service.value for service in ServiceType]
 
-    def set_reason_of_call(self, reason: str) -> bool:
-        """Set reason_of_call only if it's a valid ServiceType"""
-        if self.validate_reason_of_call(reason):
-            self.reason_of_call = reason
-            return True
-        return False
+    def set_reason_of_call(self, reason: str) -> Optional[ServiceType]:
+        for service in ServiceType:
+            if service.value == reason:
+                self.reason_of_call = reason
+                return service
+        return None
 
     def summarize(self) -> Dict:
         return {
@@ -28,14 +34,9 @@ class UserData:
             "customer_phone": self.phone_number or "unknown",
             "address": self.address,
             "postal_code": self.postal_code,
-            "reason_of_call": self.reason_of_call
+            "reason_of_call": self.reason_of_call,
+            "appointment_time": self.appointment_time
         }
-
-
-class ServiceType(Enum):
-    PLUMBING = "Plumbing"
-    PEST_CONTROL = "Pest Control"
-    ROOFING_ISSUES = "Roofing Issues"
 
 
 class Worker:
